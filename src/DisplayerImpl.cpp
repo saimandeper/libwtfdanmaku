@@ -345,6 +345,11 @@ namespace WTFDanmaku {
         mDeviceContext->SetTarget(mSurfaceBitmap.Get());
     }
 
+    void DisplayerImpl::SetDpi(uint32_t dpiX, uint32_t dpiY) {
+        mDpiX = static_cast<float>(dpiX);
+        mDpiY = static_cast<float>(dpiY);
+    }
+
     ComPtr<ID2D1Bitmap1> DisplayerImpl::CreateBitmap(uint32_t width, uint32_t height) {
         if (!mHasBackend)
             return nullptr;
@@ -370,14 +375,14 @@ namespace WTFDanmaku {
         return bitmap;
     }
 
-    ComPtr<ID2D1RenderTarget> DisplayerImpl::AcquireRenderTarget(ComPtr<ID2D1Bitmap1> bitmap) {
+    ComPtr<ID2D1DeviceContext> DisplayerImpl::AcquireDeviceContext(ComPtr<ID2D1Bitmap1> bitmap) {
         mLendMutex.lock();
         mLendContext->SetTarget(bitmap.Get());
 
         return mLendContext;
     }
 
-    void DisplayerImpl::ReleaseRenderTarget(ComPtr<ID2D1RenderTarget> renderTarget) {
+    void DisplayerImpl::ReleaseDeviceContext(ComPtr<ID2D1DeviceContext> deviceContext) {
         mLendContext->SetTarget(nullptr);
         mLendMutex.unlock();
     }
@@ -442,14 +447,16 @@ namespace WTFDanmaku {
 
     HRESULT DisplayerImpl::EndDraw() {
         HRESULT hr = mDeviceContext->EndDraw();
-        mD3DDeviceContext->Flush();
-        hr = mSwapChain->Present(1, 0);
-        if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
-            hr = HandleDeviceLost();
 
         mInRendering = false;
         mRenderMutex.unlock();
         return hr;
     }
 
+    HRESULT DisplayerImpl::Present() {
+        HRESULT hr = mSwapChain->Present(1, 0);
+        if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+            hr = HandleDeviceLost();
+        return hr;
+    }
 }
